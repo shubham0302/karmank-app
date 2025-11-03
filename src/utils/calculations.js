@@ -34,20 +34,25 @@ export const calculateBasicNumber = (dob) => {
 
 /**
  * Calculate Destiny Number (Bhagyank) from full date of birth
+ * Sums all individual digits of the complete DOB
  * @param {Date} dob - Date of birth
- * @returns {number} - Destiny number (1-9)
+ * @returns {number} - Destiny number (1-9, or master numbers 11, 22, 33)
  */
 export const calculateDestinyNumber = (dob) => {
   const day = dob.getDate();
   const month = dob.getMonth() + 1; // JavaScript months are 0-indexed
   const year = dob.getFullYear();
 
-  const sum = day + month + year;
+  // Create DOB string and sum all individual digits
+  const dobString = `${day}${month}${year}`;
+  const sum = dobString.split('').reduce((acc, digit) => acc + parseInt(digit), 0);
+
   return reduceToSingleDigit(sum);
 };
 
 /**
  * Build the base Kundli grid from date of birth
+ * Uses DD+MM+YY format (last 2 digits of year only)
  * Layout: [3, 1, 9, 6, 7, 5, 2, 8, 4] for 3x3 display
  * @param {Date} dob - Date of birth
  * @param {number} basicNumber - Basic number
@@ -57,9 +62,15 @@ export const calculateDestinyNumber = (dob) => {
 export const buildBaseKundliGrid = (dob, basicNumber, destinyNumber) => {
   const grid = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0 };
 
-  // Count digits from full DOB, excluding 0s
-  const dobString = `${dob.getDate()}${dob.getMonth() + 1}${dob.getFullYear()}`;
+  // Format: DD + MM + YY (2-digit year)
+  const day = String(dob.getDate()).padStart(2, '0');
+  const month = String(dob.getMonth() + 1).padStart(2, '0');
+  const year = String(dob.getFullYear()).substring(2); // Last 2 digits only
 
+  // Combine and remove zeros
+  const dobString = (day + month + year).replace(/0/g, '');
+
+  // Count each digit 1-9
   for (const char of dobString) {
     const digit = parseInt(char);
     if (digit > 0 && digit <= 9) {
@@ -71,8 +82,8 @@ export const buildBaseKundliGrid = (dob, basicNumber, destinyNumber) => {
   grid[destinyNumber]++;
 
   // Add basic number if day > 9 (compound numbers)
-  const day = dob.getDate();
-  if (day > 9 && day % 10 !== 0) {
+  const dayNum = dob.getDate();
+  if (dayNum > 9 && dayNum % 10 !== 0) {
     grid[basicNumber]++;
   }
 

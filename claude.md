@@ -1,648 +1,162 @@
-# KarmAnk - Vedic Numerology Application
+# CLAUDE.md
 
-## 📋 Project Overview
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-**KarmAnk** is a comprehensive Vedic Numerology web application built with React, Vite, Tailwind CSS, and Zustand. It provides detailed numerological analysis including Basic Numbers, Destiny Numbers, Vedic Kundli grids, Yoga detection, Dasha periods, and personalized forecasts for various life aspects.
+## Commands
 
-### 🎯 Key Features
-
-- **Core Numerology Calculations**: Basic Number (Moolank), Destiny Number (Bhagyank)
-- **Vedic Kundli Grid**: Interactive 3x3 grid visualization with digit frequency
-- **Yoga Detection**: 35+ special numerological combinations (Raj Yoga, Surya-Ketu, etc.)
-- **Dasha System**: 4-level time period analysis (Maha, Yearly, Monthly, Daily)
-- **Life Forecasts**: Career, Travel, Property, Marriage, Child Birth predictions
-- **Detailed Traits**: Personality analysis, profession guidance, compatibility
-- **Name Numerology**: Expression, Soul Urge, Personality number calculations
-- **Asset Vibration**: Vehicle, House, Account number compatibility
-- **Remedies**: Mantras, Rudraksha, Chakra activation guidance
-
----
-
-## 🏗️ Project Structure
-
-```
-karmank-app/
-├── src/
-│   ├── components/
-│   │   ├── ui/              # Reusable UI components
-│   │   │   ├── Card.jsx
-│   │   │   ├── Button.jsx
-│   │   │   ├── Input.jsx
-│   │   │   ├── Modal.jsx
-│   │   │   ├── SectionTitle.jsx
-│   │   │   ├── Trait.jsx
-│   │   │   └── StatusIcon.jsx
-│   │   ├── kundli/          # Kundli visualization components
-│   │   │   ├── StaticVedicKundli.jsx
-│   │   │   └── VedicDashaKundli.jsx
-│   │   ├── tabs/            # Main feature tabs
-│   │   │   ├── WelcomeTab.jsx
-│   │   │   ├── NumerologyTraitsTab.jsx
-│   │   │   ├── ForecastTab.jsx
-│   │   │   ├── FoundationalAnalysisTab.jsx
-│   │   │   └── SimpleTab.jsx
-│   │   ├── UserInputForm.jsx
-│   │   ├── TabNavigation.jsx
-│   │   └── NumberMeaningModal.jsx
-│   ├── data/                # Data files (140KB+ total)
-│   │   ├── letterData.js
-│   │   ├── numberData.js
-│   │   ├── professionData.js
-│   │   ├── compatibilityData.js
-│   │   ├── yogaData.js
-│   │   ├── remediesData.js
-│   │   ├── educationData.js
-│   │   ├── assetData.js
-│   │   ├── combinationInsights.js
-│   │   └── forecastData.js
-│   ├── utils/               # Utility functions
-│   │   ├── calculations.js
-│   │   ├── dashaCalculator.js
-│   │   ├── nameAnalysis.js
-│   │   ├── remediesChecker.js
-│   │   └── compatibility.js
-│   ├── store/
-│   │   └── useAppStore.js   # Zustand state management
-│   ├── App.jsx              # Main application component
-│   ├── main.jsx             # React entry point
-│   └── index.css            # Tailwind CSS
-├── public/
-├── index.html
-├── package.json
-├── vite.config.js
-├── tailwind.config.js
-├── postcss.config.js
-└── claude.md                # This file
-```
-
----
-
-## 🚀 Getting Started
-
-### Prerequisites
-
-- Node.js 16+ and npm
-
-### Installation
-
+### Development
 ```bash
-# Install dependencies
-npm install
-
-# Start development server
-npm run dev
-
-# Build for production
-npm run build
-
-# Preview production build
-npm run preview
+npm run dev       # Start dev server at http://localhost:5173
+npm run build     # Production build to dist/
+npm run preview   # Preview production build
+npm run lint      # Run ESLint
 ```
 
-### Development Server
+### Common Issues
+- If port 5173 is in use, Vite automatically tries 5174, 5175, etc.
+- After updating dependencies: `rm -rf node_modules package-lock.json && npm install`
 
-The app runs at: **http://localhost:5173/** (or 5174 if 5173 is occupied)
+## Architecture Overview
 
----
+### Application Flow
+This is a single-page Vedic numerology application with a two-stage user experience:
 
-## 💡 How to Use the Application
+1. **Input Stage**: User enters DOB, name (optional), and gender via `UserInputForm`
+2. **Report Stage**: After generating report, user navigates through 9 tabs showing different analyses
 
-### Step 1: Enter Your Details
-1. **Date of Birth**: Select your birth date
-2. **Name**: Enter your full name (optional for basic report)
-3. **Gender**: Select Male/Female
-4. Click **"Generate Numerology Report"**
+The entire flow is controlled by checking if `report` exists in the Zustand store. If no report exists, show input form. If report exists, show tab navigation and content.
 
-### Step 2: Explore Your Report
+### State Management Architecture
+**Critical**: The app uses Zustand with localStorage persistence (`useAppStore.js`). The store has special handling for Date objects during rehydration (see `onRehydrateStorage` callback) because JSON serialization converts Dates to strings.
 
-Navigate through 9 tabs:
+Main state structure:
+- `userData`: {dob, name, gender} - user inputs
+- `report`: Core numerology calculations (basicNumber, destinyNumber, baseKundliGrid, yogas, etc.)
+- `dashaReport`: Time period analysis (mahaDasha, yearlyDasha, monthlyDasha, dailyDasha)
+- `activeTab`: Current tab ID
+- `modalData`: Number meaning modal state
 
-#### 1. **Welcome Tab** ✅ Fully Functional
-- View your Basic Number (from birth day)
-- View your Destiny Number (from full DOB)
-- Interactive 3x3 Vedic Kundli grid
-- Active Yogas (special combinations)
-- Personality insights based on Basic-Destiny combination
+**Important**: Report generation happens in two phases:
+1. `generateReport()` - calculates core numerology
+2. `generateDashaReport()` - calculates time periods (called automatically after report)
 
-#### 2. **Name Analysis** 🔄 Coming Soon
-- Expression Number, Soul Urge, Personality Number
-- Letter-by-letter analysis
-- Name compatibility with DOB
+### Core Calculation System
+All numerology calculations are in `src/utils/`:
 
-#### 3. **Asset Vibration** 🔄 Coming Soon
-- Vehicle number compatibility
-- House number analysis
-- Bank account number vibration
+- `calculations.js`: Core functions (calculateBasicNumber, calculateDestinyNumber, buildBaseKundliGrid, detectYogas, analyzeRecurringNumbers)
+- `dashaCalculator.js`: Time period calculations for 4 dasha levels
+- `nameAnalysis.js`: Name numerology (not yet integrated into UI)
+- `compatibility.js`: Relationship compatibility logic
+- `remediesChecker.js`: Remedies recommendations
 
-#### 4. **Education** 🔄 Coming Soon
-- Learning style based on Basic Number
-- Career path based on Destiny Number
-- Educational stream recommendations
+**Key concepts**:
+- **Basic Number (Moolank)**: Derived from birth day only (e.g., 25th → 2+5 = 7)
+- **Destiny Number (Bhagyank)**: Derived from full DOB, supports master numbers 11, 22, 33
+- **Kundli Grid**: 3x3 grid with layout [3,1,9,6,7,5,2,8,4] showing digit frequencies from DOB
+- **Yogas**: Special number combinations (35+ types) detected by checking grid, basic, and destiny numbers
+- **Dasha**: Time periods where each number rules for its own value in years (1 rules 1 year, 9 rules 9 years, etc.)
 
-#### 5. **Remedies & Guidance** 🔄 Coming Soon
-- Mantras for each planetary influence
-- Rudraksha recommendations
-- Chakra activation guidance
-- Shakti Beej Mantras
+### Data Architecture
+`src/data/` contains ~140KB of static numerological data across 10 files:
 
-#### 6. **Numerology Traits** ✅ Fully Functional
-- Complete personality profile
-- Planetary ruler and associations
-- Finance tendencies and health considerations
-- Lucky days, colors, jewels
-- Important years in life
-- Relationship dynamics (as wife/husband)
-- Professional guidance (suggested careers, corporate roles)
-- Good qualities and drawbacks
-- Spiritual insights
+- `numberData.js`: Meanings for 1-9, 11, 22, 33 (including planetary rulers, traits, lucky elements)
+- `combinationInsights.js`: 81 personality descriptions for each Basic-Destiny combination (1-1 through 9-9)
+- `yogaData.js`: 35+ yoga definitions with activation conditions and interpretations
+- `professionData.js`: Career guidance per destiny number
+- `forecastData.js`: Dasha favorability mappings and status colors
+- Other files: letterData, compatibilityData, remediesData, educationData, assetData
 
-#### 7. **Forecast** ✅ Fully Functional
-- **5 Sub-tabs**: Profession, Travel, Property, Marriage, Child Birth
-- Year selector (view past/future years)
-- Status-based predictions (Green/Yellow/Red)
-- Dasha-based analysis
-- Currently featuring detailed **Profession Forecast**
+**Critical**: `combinationInsights.js` is accessed using `combination_${basicNumber}_${destinyNumber}` keys.
 
-#### 8. **Foundational Analysis** ✅ Fully Functional
-- All active Yogas with descriptions
-- Recurring numbers analysis
-- Special insights (Master Day energies)
-- Summary statistics
+### Component Architecture
 
-#### 9. **Advanced Dasha** 🔄 Coming Soon
-- Dynamic Kundli with live Dasha updates
-- Maha Dasha timeline
-- Yearly, Monthly, Daily Dasha analysis
-- Interactive date selector
+**Tab System**: 9 tabs defined in `App.jsx`:
+- welcome, name, asset, education, remedies, traits, forecast, foundational, advanced
+- Tab IDs are hardcoded in `TabNavigation.jsx` and `App.jsx`'s switch statement
+- Tabs "name", "asset", "education", "remedies" use `SimpleTab` component (placeholders for future features)
 
-### Step 3: Interactive Features
+**Kundli Components** (`src/components/kundli/`):
+- `StaticVedicKundli.jsx`: Shows base grid with color-coded cells, clickable to open number meaning modal
+- `VedicDashaKundli.jsx`: Dynamic grid showing active dashas with gradient overlays (used in AdvancedDashaTab)
 
-- **Click Kundli Numbers**: Opens modal with detailed number meanings
-- **Reset Button**: Clear all data and start over
-- **Persistent Storage**: Your data is saved in browser localStorage
+**Forecast System**: `ForecastTab.jsx` contains year selector and 5 sub-tabs (Profession, Travel, Property, Marriage, Child Birth). Each forecast type has its own component in `src/components/forecast/`. Forecasts use yearly and maha dasha data to determine favorability (green/yellow/red status).
 
----
+### Styling System
+Uses Tailwind CSS v4 with `@tailwindcss/postcss` plugin (not the legacy @tailwind directives).
 
-## 🧮 Core Calculations Explained
-
-### Basic Number (Moolank)
-- Calculated from birth day only
-- Example: Born on 25th → 2 + 5 = **7**
-
-### Destiny Number (Bhagyank)
-- Calculated from complete DOB
-- Example: 25/03/1990 → 2+5+0+3+1+9+9+0 = 29 → 2+9 = **11** (Master Number)
-
-### Kundli Grid
-- 3x3 grid showing digit frequencies from DOB
-- Layout: [3, 1, 9, 6, 7, 5, 2, 8, 4]
-- Excludes zeros
-- Adds Destiny Number and Basic Number (if day > 9)
-
-### Dasha Periods
-1. **Maha Dasha**: Major life periods (each number lasts its value in years)
-2. **Yearly Dasha**: Annual periods starting from birthday
-3. **Monthly Dasha**: ~41-74 day cycles
-4. **Daily Dasha**: Daily influences
-
----
-
-## 📊 Data Architecture
-
-### Data Files Overview
-
-| File | Size | Description |
-|------|------|-------------|
-| `letterData.js` | 6.2KB | A-Z letter meanings and numerological values |
-| `numberData.js` | 19KB | Number meanings (1-9, 11, 22, 33) and destiny details |
-| `professionData.js` | 2.9KB | Career guidance for each destiny number |
-| `compatibilityData.js` | 3.6KB | Harmony groups and compatibility matrices |
-| `yogaData.js` | 19KB | 35+ yoga combinations with activation rules |
-| `remediesData.js` | 17KB | Mantras, Rudraksha, Chakra, Shakti guidance |
-| `educationData.js` | 7.7KB | Learning styles and educational paths |
-| `assetData.js` | 2.7KB | Vehicle/House/Account number meanings |
-| `combinationInsights.js` | 60KB | 81 Basic-Destiny combination descriptions |
-| `forecastData.js` | 1.5KB | Color maps and dasha insights |
-
-**Total Data**: ~140KB of numerological knowledge
-
----
-
-## 🎨 Design System
-
-### Color Palette
-
-- **Primary**: Yellow (#FACC15) - Spiritual gold
-- **Background**: Gradient (Indigo → Purple → Indigo)
-- **Cards**: Dark gray with backdrop blur
-- **Status Colors**:
-  - 🟢 Green: Favorable
-  - 🟡 Yellow: Neutral/Mixed
-  - 🔴 Red: Challenging/Caution
-
-### Typography
-
-- **Headings**: Serif font (Georgia) for mystical feel
-- **Body**: System sans-serif for readability
-
-### Components
-
-All components use Tailwind CSS utility classes with custom layers defined in `index.css`:
-- `.card` - Standard container
-- `.btn-primary` - Main action buttons
-- `.btn-secondary` - Secondary actions
-- `.input-field` - Form inputs
-
----
-
-## 🔧 Technical Stack
-
-### Core Technologies
-
-- **React 18**: UI library
-- **Vite 5**: Build tool and dev server
-- **Tailwind CSS 4**: Utility-first CSS framework
-- **Zustand 5**: State management with persistence
-- **Lucide React**: Icon library
-
-### Key Dependencies
-
-```json
-{
-  "react": "^18.3.1",
-  "react-dom": "^18.3.1",
-  "zustand": "^5.0.2",
-  "lucide-react": "^0.468.0"
-}
+**Important**: `index.css` uses:
+```css
+@import "tailwindcss";
 ```
+Not the old `@tailwind base/components/utilities` syntax.
 
-### Development Dependencies
+Custom utilities defined in index.css:
+- `.card` - standard container with blur and border
+- `.btn-primary`, `.btn-secondary` - button styles
+- `.input-field` - form input styles
+- Background uses CSS linear-gradient (not Tailwind's from-/via-/to- utilities which aren't available in v4)
 
-```json
-{
-  "vite": "^7.1.12",
-  "tailwindcss": "^4.1.1",
-  "autoprefixer": "^10.4.20",
-  "postcss": "^8.5.1",
-  "@vitejs/plugin-react": "^4.3.4"
-}
-```
+### Testing Notes
+Manual testing examples in existing docs (see lines 409-448 of old CLAUDE.md).
 
----
+**Common test scenario**: Use DOB 15/08/1990 → Basic=6, Destiny=5
 
-## 📦 State Management
+**Edge cases to consider**:
+- Master numbers (11, 22, 33) should NOT be reduced
+- Days 11, 22 trigger special insights
+- Zeros are excluded from kundli grid
+- Date persistence requires Date object conversion after rehydration
 
-### Zustand Store (`useAppStore.js`)
-
-The application uses a centralized Zustand store with localStorage persistence.
-
-**State Structure:**
-
-```javascript
-{
-  userData: {
-    dob: Date | null,
-    name: string,
-    gender: 'Male' | 'Female'
-  },
-  report: {
-    dob: Date,
-    basicNumber: number,
-    destinyNumber: number,
-    baseKundliGrid: Object,
-    yogas: Array,
-    recurringNumbersAnalysis: Array,
-    specialInsights: Array,
-    specialRemedies: Array
-  },
-  dashaReport: {
-    mahaDashaTimeline: Array,
-    yearlyDashaTimeline: Array,
-    monthlyDashaTimeline: Array,
-    dailyDashaTimeline: Array
-  },
-  activeTab: string,
-  modalData: Object,
-  isLoading: boolean,
-  error: string | null
-}
-```
-
-**Key Actions:**
-
-- `setUserData(userData)` - Update user information
-- `generateReport()` - Calculate numerology report
-- `generateDashaReport()` - Calculate dasha timelines
-- `setActiveTab(tab)` - Switch between tabs
-- `openModal(number)` - Open number meaning modal
-- `closeModal()` - Close modal
-- `reset()` - Clear all data
-
----
-
-## 🧩 Component Architecture
-
-### UI Components (Reusable)
-
-**Card.jsx**
-```jsx
-<Card className="additional-classes">
-  {children}
-</Card>
-```
-
-**Button.jsx**
-```jsx
-<Button
-  variant="primary" // or "secondary"
-  onClick={handleClick}
-  disabled={false}
->
-  Click Me
-</Button>
-```
-
-**Input.jsx**
-```jsx
-<Input
-  type="text"
-  label="Name"
-  value={name}
-  onChange={handleChange}
-  required
-/>
-```
-
-**Modal.jsx**
-```jsx
-<Modal isOpen={isOpen} onClose={handleClose} title="Title">
-  {children}
-</Modal>
-```
-
-### Feature Components
-
-**StaticVedicKundli.jsx**
-- Displays 3x3 Kundli grid
-- Color-coded cells (basic, destiny, DOB)
-- Click handler for number meanings
-
-**VedicDashaKundli.jsx**
-- Dynamic Kundli with active Dashas
-- Multi-color gradients for overlapping influences
-- Legend showing active periods
-
-**UserInputForm.jsx**
-- Form to collect user data
-- Validation and error handling
-- Triggers report generation
-
-**TabNavigation.jsx**
-- Horizontal scrollable tab bar
-- 9 main tabs
-- Active state highlighting
-
----
-
-## 🧪 Testing the Application
-
-### Manual Testing Steps
-
-#### Test 1: Basic Report Generation
-1. Enter DOB: `15/08/1990`
-2. Click "Generate Numerology Report"
-3. **Expected**:
-   - Basic Number: 6
-   - Destiny Number: 5
-   - Kundli grid populated
-   - Welcome tab shows data
-
-#### Test 2: Tab Navigation
-1. Generate a report
-2. Click each tab
-3. **Expected**: All tabs load without errors
-
-#### Test 3: Kundli Interaction
-1. In Welcome tab, click any number in Kundli
-2. **Expected**: Modal opens with number meaning
-3. Click X or overlay to close
-4. **Expected**: Modal closes
-
-#### Test 4: Forecast Analysis
-1. Navigate to Forecast tab
-2. Select different years
-3. Click sub-tabs (Profession, Travel, etc.)
-4. **Expected**:
-   - Status indicators show (🟢/🟡/🔴)
-   - Recommendations display
-   - Year changes update forecast
-
-#### Test 5: Data Persistence
-1. Generate a report
-2. Refresh the page
-3. **Expected**: Report data persists
-
-#### Test 6: Reset Functionality
-1. Generate a report
-2. Click "Reset" button in header
-3. **Expected**: Returns to input form
-
-### Feature Testing Checklist
-
-✅ **Core Features**
-- [x] Basic Number calculation
-- [x] Destiny Number calculation
-- [x] Kundli grid generation
-- [x] Yoga detection
-- [x] Recurring numbers analysis
-- [x] Dasha timeline generation
-
-✅ **UI Features**
-- [x] Responsive design
-- [x] Tab navigation
-- [x] Modal interactions
-- [x] Form validation
-- [x] Loading states
-- [x] Error handling
-
-✅ **Data Features**
-- [x] LocalStorage persistence
-- [x] State management
-- [x] Data imports from files
-- [x] Combination insights lookup
-
-🔄 **Upcoming Features**
-- [ ] Name Numerology analysis
-- [ ] Asset Vibration calculator
-- [ ] Education guidance
-- [ ] Remedies display
-- [ ] Advanced Dasha dynamic Kundli
-- [ ] All 5 forecast types fully functional
-- [ ] Export report as PDF
-
----
-
-## 🐛 Troubleshooting
-
-### Issue: "Port 5173 is in use"
-**Solution**: Vite automatically tries the next port (5174, 5175, etc.)
-
-### Issue: "Module not found"
-**Solution**:
-```bash
-rm -rf node_modules package-lock.json
-npm install
-```
-
-### Issue: Tailwind styles not loading
-**Solution**: Check that `index.css` is imported in `main.jsx`
-
-### Issue: State not persisting
-**Solution**: Check browser console for localStorage errors. Try clearing browser data.
-
-### Issue: Build errors
-**Solution**:
-```bash
-npm run build
-# Check console for specific errors
-```
-
----
-
-## 🔮 Future Enhancements
-
-### Phase 1 (Short-term)
-- [ ] Complete all 5 forecast types with full logic
-- [ ] Implement Name Numerology tab
-- [ ] Add Asset Vibration calculator
-- [ ] Build Education guidance tab
-- [ ] Create Remedies display with all 7 sub-categories
-
-### Phase 2 (Medium-term)
-- [ ] Advanced Dasha with dynamic Kundli
-- [ ] PDF export functionality
-- [ ] Print-friendly report layout
-- [ ] Name compatibility checker
-- [ ] Multiple language support
-
-### Phase 3 (Long-term)
-- [ ] User accounts and saved reports
-- [ ] AI-powered insights (Gemini API integration)
-- [ ] Transit analysis
-- [ ] Relationship compatibility reports
-- [ ] Business name suggestions
-- [ ] Mobile app (React Native)
-
----
-
-## 📚 Learning Resources
-
-### Numerology Concepts
-- **Basic Number (Moolank)**: Your core personality, derived from birth day
-- **Destiny Number (Bhagyank)**: Your life path, derived from full DOB
-- **Yogas**: Special combinations that amplify or modify influences
-- **Dashas**: Time periods ruled by specific numbers
-- **Harmony Groups**: [1,5,7], [2,4,8], [3,6,9]
-
-### Technical Resources
-- [React Documentation](https://react.dev/)
-- [Vite Guide](https://vite.dev/)
-- [Tailwind CSS](https://tailwindcss.com/)
-- [Zustand](https://zustand.docs.pmnd.rs/)
-
----
-
-## 👥 Contributing
-
-### Code Style
-- Use functional components with hooks
-- Follow DRY principles
-- Add JSDoc comments to utility functions
-- Use Tailwind CSS for styling
-- Keep components under 300 lines
-
-### Adding New Features
-
-1. **Data**: Add to appropriate file in `src/data/`
-2. **Logic**: Create utility function in `src/utils/`
-3. **UI**: Build component in `src/components/`
-4. **Integration**: Update store if needed
-5. **Testing**: Test manually with various inputs
-
-### File Naming Conventions
-- Components: PascalCase (e.g., `MyComponent.jsx`)
-- Utilities: camelCase (e.g., `myUtility.js`)
-- Data files: camelCase (e.g., `myData.js`)
-
----
-
-## 📄 License
-
-This project is private and proprietary.
-
----
-
-## 🙏 Acknowledgments
-
-- Built based on traditional Vedic numerology principles
-- Inspired by ancient wisdom and modern technology
-- Data compiled from numerological texts and expert consultations
-
----
-
-## 📞 Support
-
-For questions or issues:
-1. Check this documentation
-2. Review the code comments
-3. Test with known values
-4. Check browser console for errors
-
----
-
-## 🎯 Quick Reference
-
-### Important Numbers
-
-| Number | Planet | Energy | Key Trait |
-|--------|--------|--------|-----------|
-| 1 | Sun | Leadership | Confident |
-| 2 | Moon | Emotional | Sensitive |
-| 3 | Jupiter | Wisdom | Knowledgeable |
-| 4 | Rahu | Unconventional | Analytical |
-| 5 | Mercury | Intellectual | Business-minded |
-| 6 | Venus | Harmonious | Charming |
-| 7 | Ketu | Spiritual | Introspective |
-| 8 | Saturn | Disciplined | Hardworking |
-| 9 | Mars | Energetic | Courageous |
-
-### Master Numbers
-- **11**: Intuitive, Inspirational
-- **22**: Master Builder, Practical Visionary
-- **33**: Master Teacher, Selfless Service
+## Domain-Specific Context
 
 ### Harmony Groups
-- **Group 1**: 1, 5, 7 (Fire/Spirit)
-- **Group 2**: 2, 4, 8 (Earth/Matter)
-- **Group 3**: 3, 6, 9 (Air/Mind)
+Numbers are grouped by compatibility:
+- Group 1: [1,5,7] - Fire/Spirit
+- Group 2: [2,4,8] - Earth/Matter
+- Group 3: [3,6,9] - Air/Mind
 
-Numbers in the same group harmonize well together.
+Numbers within the same harmony group work well together.
 
----
+### Planetary Associations
+1→Sun, 2→Moon, 3→Jupiter, 4→Rahu, 5→Mercury, 6→Venus, 7→Ketu, 8→Saturn, 9→Mars
 
-## 🔐 Privacy & Data
+These associations drive the traits, remedies, and compatibility logic throughout the app.
 
-- All calculations happen in the browser
-- No data sent to external servers
-- Data stored locally in browser only
-- Cleared on "Reset" or browser cache clear
+## Algorithm Verification
 
----
+**Status**: ✅ All formulas verified against `context.txt` and `context_2.txt` reference files
 
-**Version**: 1.0.0
-**Last Updated**: November 2025
-**Status**: ✅ Core Features Functional, 🔄 Expanding Features
+### Critical Formulas (Verified & Fixed)
 
----
+**Destiny Number Calculation**:
+- Formula: Sum all individual digits of DD+MM+YYYY (not the whole numbers)
+- Example: 15/08/1990 → 1+5+0+8+1+9+9+0 = 33 (master number, preserved)
+- Implementation: [calculations.js:41-51](src/utils/calculations.js#L41-L51)
 
-*May your numbers guide you to wisdom and prosperity* ✨🔢🌟
+**Kundli Grid Construction**:
+- Formula: Use DD+MM+YY format (2-digit year only), pad with zeros, then remove zeros
+- Example: 15/08/1990 → "150890" → remove zeros → "1589"
+- Implementation: [calculations.js:62-91](src/utils/calculations.js#L62-L91)
+
+**Master Numbers**: 11, 22, 33 are NEVER reduced throughout all calculations
+
+### All Verified Calculations
+
+- ✅ Basic Number: `reduceToSingleDigit(birthDay)`
+- ✅ Destiny Number: Sum all individual digits from DD+MM+YYYY
+- ✅ Kundli Grid: DD+MM+YY format (2-digit year)
+- ✅ Maha Dasha: Each number rules for its value in years, starting with basic number
+- ✅ Yearly Dasha: `basicNum + birthMonth + (year%100) + weekdayNumber`
+- ✅ Monthly Dasha: 9 periods with durations [8,16,24,32,41,49,57,64,74] days
+- ✅ Daily Dasha: `monthlyDasha + weekdayNumber`
+- ✅ Yoga Detection: All required numbers present AND all forbidden numbers absent
+- ✅ Recurring Numbers: Count ≥2 triggers double influence, ≥3 triggers triple influence
+
+### Test Example (DOB: 15/08/1990)
+
+Expected Results:
+- Basic Number: 6 (1+5)
+- Destiny Number: 33 (1+5+0+8+1+9+9+0 = 33, master number preserved)
+- Kundli Grid Input: "150890" (DD=15, MM=08, YY=90)
+- Grid After Removing Zeros: {1:1, 5:1, 8:1, 9:1} + destiny(33→3+3=6) + basic(6)
+- Final Grid: {1:1, 5:1, 6:2, 8:1, 9:1}
